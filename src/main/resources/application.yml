@@ -2,17 +2,16 @@ server:
   port: 8080
   servlet:
     context-path: /api
-  profiles:
-    active: dev
+
 spring:
   application:
     name: wuqi-picture-backend
   #数据库配置
   datasource:
-    driver-class-name: ${spring.datasource.driver-class-name}
-    url: ${spring.datasource.url}
-    username: ${spring.datasource.username}
-    password: ${spring.datasource.password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/event_hub
+    username: root
+    password: chen2005
 mybatis-plus:
   configuration:
     # MyBatis 配置
