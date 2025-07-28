@@ -10,50 +10,59 @@
           <router-view />
         </a-layout-content>
       </a-layout>
-      <a-layout-footer class="footer">
-        <a href="https://abandonfail.github.io" target="_blank"> 梧栖图行 </a>
-      </a-layout-footer>
     </a-layout>
   </div>
 </template>
 
 <script setup lang="ts">
 import GlobalHeader from '@/components/GlobalHeader.vue'
-
+import GlobalSider from "@/components/GlobalSider.vue";
 </script>
 
 <style scoped>
+ #basicLayout {
+  min-height: 100vh;
+}
+
+/* 顶部导航栏 */
 #basicLayout .header {
-  padding-inline: 20px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  z-index: 1000;
   background: white;
-  color: unset;
-  margin-bottom: 1px;
+  padding-inline: 20px;
+  border-bottom: 1px solid #eee;
 }
 
+/* 固定左侧侧边栏 */
 #basicLayout .sider {
+  position: fixed;
+  top: 64px; /* header 高度 */
+  left: 0;
+  height: calc(100vh - 64px);
+  width: 200px;
   background: #fff;
-  border-right: 0.5px solid #eee;
+  border-right: 1px solid #eee;
   padding-top: 20px;
+  z-index: 999;
 }
 
+/* 主内容区域右移防止被侧边栏遮住 */
+#basicLayout .content {
+  margin-left: 200px; /* 与 sider 宽度一致 */
+  margin-top: 64px;   /* 与 header 高度一致 */
+  padding: 28px;
+  background: linear-gradient(to right, #fefefe, #fff);
+  min-height: calc(100vh - 64px - 48px); /* 减去顶部和 footer 高度 */
+  box-sizing: border-box;
+}
+
+/* 修复菜单边框 */
 #basicLayout :deep(.ant-menu-root) {
   border-bottom: none !important;
   border-inline-end: none !important;
-}
-
-#basicLayout .content {
-  padding: 28px;
-  background: linear-gradient(to right, #fefefe, #fff);
-  margin-bottom: 28px;
-}
-
-#basicLayout .footer {
-  background: #efefef;
-  padding: 16px;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  text-align: center;
 }
 </style>

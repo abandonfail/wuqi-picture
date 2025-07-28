@@ -12,6 +12,9 @@ import com.wuqipicturebackend.constant.UserConstant;
 import com.wuqipicturebackend.exception.BusinessException;
 import com.wuqipicturebackend.exception.ErrorCode;
 import com.wuqipicturebackend.exception.ThrowUtils;
+import com.wuqipicturebackend.manager.CosManager;
+import com.wuqipicturebackend.manager.auth.annotation.SaSpaceCheckPermission;
+import com.wuqipicturebackend.manager.auth.model.SpaceUserPermissionConstant;
 import com.wuqipicturebackend.model.dto.user.*;
 import com.wuqipicturebackend.model.entity.User;
 import com.wuqipicturebackend.model.vo.LoginUserVO;
@@ -19,9 +22,11 @@ import com.wuqipicturebackend.model.vo.UserVO;
 import com.wuqipicturebackend.service.UserService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.io.File;
 import java.nio.file.Files;
 import java.util.List;
 
@@ -31,6 +36,9 @@ public class UserController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private CosManager cosManager;
 
     /**
      * 用户注册
@@ -134,7 +142,6 @@ public class UserController {
      * 更新用户
      */
     @PostMapping("/update")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> updateUser(@RequestBody UserUpdateRequest userUpdateRequest) {
         if (userUpdateRequest == null || userUpdateRequest.getId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -177,5 +184,32 @@ public class UserController {
         // 调用 service 层的方法进行会员兑换
         boolean result = userService.exchangeVip(loginUser, vipCode);
         return ResultUtils.success(result);
+    }
+
+    /**
+     * 用户上传头像
+     *
+     * @param multipartFile
+     * @return
+     */
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_UPLOAD)
+    @PostMapping("/upload/avatar")
+    public BaseResponse<String> userUploadAvatar(@RequestPart("file") MultipartFile multipartFile, HttpServletRequest httpServletRequest) {
+        ThrowUtils.throwIf(multipartFile == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(httpServletRequest);
+        String result = userService.userUploadAvatar(multipartFile, loginUser);
+        return ResultUtils.success(result);
+    }
+
+    /**
+     * 修改密码
+     * @param userChangePasswordRequest
+     * @return
+     */
+    @PostMapping("/changePassword")
+    public BaseResponse<Boolean> userChangePassword(@RequestBody UserChangePasswordRequest userChangePasswordRequest){
+        ThrowUtils.throwIf(userChangePasswordRequest == null, ErrorCode.PARAMS_ERROR);
+        boolean res =  userService.userChangePassword(userChangePasswordRequest);
+        return ResultUtils.success(res);
     }
 }

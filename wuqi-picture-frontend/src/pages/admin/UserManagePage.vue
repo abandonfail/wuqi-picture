@@ -28,24 +28,52 @@
           <div v-if="record.userRole === 'admin'">
             <a-tag color="green">管理员</a-tag>
           </div>
+          <a-tag v-else-if="record.userRole === 'vip'" color="gold">
+            VIP会员
+          </a-tag>
           <div v-else>
             <a-tag color="blue">普通用户</a-tag>
           </div>
+        </template>
+        <template v-else-if="column.dataIndex === 'vipNumber'">
+          {{ record.vipNumber || '-' }}
+        </template>
+        <template v-else-if="column.dataIndex === 'vipCode'">
+          {{ record.vipCode || '-' }}
+        </template>
+        <template v-else-if="column.dataIndex === 'vipExpireTime'">
+          {{ record.vipExpireTime ? dayjs(record.vipExpireTime).format('YYYY-MM-DD HH:mm:ss') : '-' }}
         </template>
         <template v-if="column.dataIndex === 'createTime'">
           {{ dayjs(record.createTime).format('YYYY-MM-DD HH:mm:ss') }}
         </template>
         <template v-else-if="column.key === 'action'">
-          <a-button danger @click="doDelete(record.id)">删除</a-button>
+          <a-space>
+            <a-button type="primary" @click="onEdit(record)">编辑</a-button>
+            <a-popconfirm
+              title="确定要删除该用户吗？"
+              ok-text="确认"
+              cancel-text="取消"
+              @confirm="() => doDelete(record.id)"
+            >
+              <a-button danger>删除</a-button>
+            </a-popconfirm>
+          </a-space>
         </template>
       </template>
     </a-table>
+    <UserEditModal
+      v-model:visible="editModalVisible"
+      :user="currentUser"
+      @success="onEditSuccess"
+    />
   </div>
 </template>
 <script lang="ts" setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { deleteUserUsingPost, listUserVoByPageUsingPost } from '@/api/userController.ts'
 import { message } from 'ant-design-vue'
+import UserEditModal from '@/components/UserEditModal.vue'
 import dayjs from 'dayjs'
 
 const columns = [
@@ -74,6 +102,18 @@ const columns = [
     dataIndex: 'userRole',
   },
   {
+    title: '会员编号',
+    dataIndex: 'vipNumber',
+  },
+  {
+    title: '会员兑换码',
+    dataIndex: 'vipCode',
+  },
+  {
+    title: '会员过期时间',
+    dataIndex: 'vipExpireTime',
+  },
+  {
     title: '创建时间',
     dataIndex: 'createTime',
   },
@@ -82,6 +122,20 @@ const columns = [
     key: 'action',
   },
 ]
+
+//编辑组件
+const editModalVisible = ref(false)
+const currentUser = ref<Partial<API.UserVO> | null>(null)
+
+const onEdit = (record: API.UserVO) => {
+  currentUser.value = { ...record }
+  editModalVisible.value = true
+}
+
+const onEditSuccess = () => {
+  fetchData()
+}
+
 
 // 定义数据
 const dataList = ref<API.UserVO[]>([])

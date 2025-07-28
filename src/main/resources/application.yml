@@ -2,8 +2,14 @@ server:
   port: 8080
   servlet:
     context-path: /api
+  # cookie 30 天过期
+  session:
+    cookie:
+      max-age: 2592000
 
 spring:
+  profiles:
+    active: local
   application:
     name: wuqi-picture-backend
   #数据库配置
@@ -12,12 +18,31 @@ spring:
     url: jdbc:mysql://localhost:3306/wuqi_picture
     username: root
     password: chen2005
+  # Redis 配置
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    password: ossbar
+    database: 12
+    timeout: 5000
+  # Session 配置
+  session:
+    store-type: redis
+    # session 30 天后过期
+    timeout: 2592000
+  # 开放更大的文件上传体积
+  servlet:
+    multipart:
+      max-file-size: 10MB
+    #生产环境无需开启
+    props:
+      sql-show: true
 mybatis-plus:
   configuration:
     # MyBatis 配置
     map-underscore-to-camel-case: false
     # 仅在开发环境打印日志
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     enable-sql-runner: true
     db-config:
@@ -36,3 +61,16 @@ knife4j:
         api-rule: package
         api-rule-resources:
           - com.wuqipicturebackend.controller
+
+## 对象存储配置（需要从腾讯云获取）
+#cos:
+#  client:
+#    host: xxx
+#    secretId: xxx
+#    secretKey: xxx
+#    region: xxx
+#    bucket: xxx
+
+## 阿里云 AI 配置
+#aliYunAi:
+#  apiKey: xxx

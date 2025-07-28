@@ -5,14 +5,23 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.qcloud.cos.model.PutObjectResult;
+import com.wuqipicturebackend.common.ResultUtils;
+import com.wuqipicturebackend.config.CosClientConfig;
 import com.wuqipicturebackend.constant.UserConstant;
 import com.wuqipicturebackend.exception.BusinessException;
 import com.wuqipicturebackend.exception.ErrorCode;
+import com.wuqipicturebackend.exception.ThrowUtils;
+import com.wuqipicturebackend.manager.CosManager;
+import com.wuqipicturebackend.manager.auth.StpKit;
+import com.wuqipicturebackend.model.dto.user.UserChangePasswordRequest;
 import com.wuqipicturebackend.model.dto.user.UserQueryRequest;
 import com.wuqipicturebackend.model.dto.user.VipCode;
 import com.wuqipicturebackend.model.entity.User;
@@ -27,13 +36,16 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
@@ -46,6 +58,12 @@ import java.util.stream.Collectors;
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     implements UserService{
+
+    @javax.annotation.Resource
+    private CosManager cosManager;
+
+    @javax.annotation.Resource
+    private CosClientConfig cosClientConfig;
 
     /**
      * 用户注册
@@ -119,8 +137,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         // 4. 保存用户的登录态
         request.getSession().setAttribute(UserConstant.USER_LOGIN_STATE, user);
         // 记录用户登录态到 Sa-token，便于空间鉴权时使用，注意保证该用户信息与 SpringSession 中的信息过期时间一致
-//        StpKit.SPACE.login(user.getId());
-//        StpKit.SPACE.getSession().set(UserConstant.USER_LOGIN_STATE, user);
+        StpKit.SPACE.login(user.getId());
+        StpKit.SPACE.getSession().set(UserConstant.USER_LOGIN_STATE, user);
         return this.getLoginUserVO(user);
     }
 
@@ -241,6 +259,74 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         return user != null && UserRoleEnum.ADMIN.getValue().equals(user.getUserRole());
     }
 
+    /**
+     * 用户上传头像
+     * @param multipartFile
+     * @param loginUser
+     * @return
+     */
+    @Override
+    public String userUploadAvatar(MultipartFile multipartFile, User loginUser) {
+        // 文件目录
+        String originalFilename = multipartFile.getOriginalFilename();
+        String fileSuffix = originalFilename != null && originalFilename.contains(".")
+                ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                : "";
+        String uuid = UUID.randomUUID().toString().replace("-", "");
+        String filepath = String.format("/avatar/%s/%s%s", loginUser.getId(), uuid, fileSuffix);
+        File file = null;
+        try {
+            // 上传文件
+            file = File.createTempFile(filepath, null);
+            multipartFile.transferTo(file);
+            PutObjectResult object = cosManager.putObject(filepath, file);
+            ThrowUtils.throwIf(object == null, ErrorCode.SYSTEM_ERROR, "上传失败");
+            // 返回可访问的地址
+            filepath = cosClientConfig.getHost() + filepath;
+            loginUser.setUserAvatar(filepath);
+            boolean res = this.updateById(loginUser);
+            return filepath;
+        } catch (Exception e) {
+            log.error("file upload error, filepath = " + filepath, e);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "上传失败");
+        } finally {
+            if (file != null) {
+                // 删除临时文件
+                boolean delete = file.delete();
+                if (!delete) {
+                    log.error("file delete error, filepath = {}", filepath);
+                }
+            }
+        }
+    }
+
+    @Override
+    public boolean userChangePassword(UserChangePasswordRequest userChangePasswordRequest) {
+        String oldPassword = userChangePasswordRequest.getOldPassword();
+        String newPassword = userChangePasswordRequest.getNewPassword();
+        String checkPassword = userChangePasswordRequest.getCheckPassword();
+        Long id = userChangePasswordRequest.getId();
+        //把原密码加密查询数据库，判断原密码是否正确
+        String encryptOldPassword = getEncryptPassword(oldPassword);
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("id", id);
+        queryWrapper.eq("userPassword",encryptOldPassword);
+        long count = this.baseMapper.selectCount(queryWrapper);
+        if (count < 1){
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,"原密码错误");
+        }
+        //判断新密码和确认密码是否一致
+        if (!newPassword.equals(checkPassword)){
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,"两次密码不一致");
+        }
+        //把新密码加密后存入数据库
+        String encryptNewPassword = getEncryptPassword(newPassword);
+        User user = new User();
+        user.setId(id);
+        user.setUserPassword(encryptNewPassword);
+        return this.updateById(user);
+    }
+
     // region ------- 以下代码为用户兑换会员功能 --------
 
     // 新增依赖注入
@@ -340,6 +426,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         updateUser.setVipExpireTime(expireTime); // 设置过期时间
         updateUser.setVipCode(usedVipCode);     // 记录使用的兑换码
         updateUser.setUserRole(VIP_ROLE);       // 修改用户角色
+
+        if (user.getVipNumber() == null) {
+            // 查询当前最大 vipNumber，生成新编号
+            LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+            wrapper.select(User::getVipNumber);
+            wrapper.orderByDesc(User::getVipNumber);
+            wrapper.last("LIMIT 1");
+            User maxVipUser = this.getOne(wrapper);
+            Long nextVipNumber = (maxVipUser != null && maxVipUser.getVipNumber() != null)
+                    ? maxVipUser.getVipNumber() + 1
+                    : 1L;
+            updateUser.setVipNumber(nextVipNumber);  // 设置新的 vip 编号
+        } else {
+            // 有会员编号，则保持不变，不设置
+        }
 
         // 执行更新
         boolean updated = this.updateById(updateUser);

@@ -1,11 +1,13 @@
 package com.wuqipicturebackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.wuqipicturebackend.model.dto.user.UserChangePasswordRequest;
 import com.wuqipicturebackend.model.dto.user.UserQueryRequest;
 import com.wuqipicturebackend.model.entity.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.wuqipicturebackend.model.vo.LoginUserVO;
 import com.wuqipicturebackend.model.vo.UserVO;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -103,4 +105,19 @@ public interface UserService extends IService<User> {
      * 用户兑换会员（会员码兑换）
      */
     boolean exchangeVip(User user, String vipCode);
+
+    /**
+     * 用户上传头像
+     * @param multipartFile
+     * @param loginUser
+     * @return
+     */
+    String userUploadAvatar(MultipartFile multipartFile, User loginUser);
+
+    /**
+     * 用户修改密码
+     * @param userChangePasswordRequest
+     * @return
+     */
+    boolean userChangePassword(UserChangePasswordRequest userChangePasswordRequest);
 }
