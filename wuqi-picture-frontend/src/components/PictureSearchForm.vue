@@ -89,7 +89,7 @@
 <script lang="ts" setup>
 import { onMounted, reactive, ref } from 'vue'
 import dayjs from 'dayjs'
-import {listPictureTagCategoryUsingGet, listPictureVOByPageWithUsingPost} from '@/api/pictureController.ts'
+import {listPictureTagCategoryUsingGet, listPictureVoByPageUsingPost} from '@/api/pictureController.ts'
 import { message } from 'ant-design-vue'
 
 interface Props {

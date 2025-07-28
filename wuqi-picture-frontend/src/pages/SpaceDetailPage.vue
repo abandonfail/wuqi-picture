@@ -83,6 +83,7 @@ import { computed, h, onMounted, ref, watch } from 'vue'
 import { getSpaceVoByIdUsingGet } from '@/api/spaceController.ts'
 import { message } from 'ant-design-vue'
 import {
+  listPictureVoByPageUsingPost,
   searchPictureByColorUsingPost,
 } from '@/api/pictureController.ts'
 import { formatSize } from '@/utils'
@@ -157,7 +158,7 @@ const fetchData = async () => {
     spaceId: props.id,
     ...searchParams.value,
   }
-  const res = await listPictureVOByPageUsingPost(params)
+  const res = await listPictureVoByPageUsingPost(params)
   if (res.data.code === 0 && res.data.data) {
     dataList.value = res.data.data.records ?? []
     total.value = res.data.data.total ?? 0
@@ -233,10 +234,6 @@ watch(
   },
 )
 
-
-function listPictureVOByPageUsingPost(params: { category?: string | undefined; current?: number | undefined; endEditTime?: string | undefined; id?: number | undefined; introduction?: string | undefined; name?: string | undefined; nullSpaceId?: boolean | undefined; pageSize?: number | undefined; picFormat?: string | undefined; picHeight?: number | undefined; picScale?: number | undefined; picSize?: number | undefined; picWidth?: number | undefined; reviewMessage?: string | undefined; reviewStatus?: number | undefined; reviewTime?: string | undefined; reviewerId?: number | undefined; searchText?: string | undefined; sortField?: string | undefined; sortOrder?: string | undefined; spaceId: string | number; startEditTime?: string | undefined; tags?: string[] | undefined; userId?: number | undefined }) {
-  throw new Error('Function not implemented.')
-}
 </script>
 
 <style scoped>
